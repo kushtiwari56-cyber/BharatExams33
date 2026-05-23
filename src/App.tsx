@@ -114,6 +114,10 @@ function AppContent() {
     return <OnboardingCover onComplete={() => setIsOnboarded(true)} />;
   }
 
+  if (!user) {
+    return <LoginScreen />;
+  }
+
   const isProfileIncomplete = !profile?.state || !profile?.education?.qualification;
 
   if (isProfileIncomplete) {
@@ -132,13 +136,105 @@ function AppContent() {
           <Route path="/explore" element={<Explore />} />
           <Route path="/ai" element={<AI />} />
           <Route path="/planner" element={<Planner />} />
-          <Route path="/admin" element={<Admin />} />
+          <Route 
+            path="/admin" 
+            element={
+              profile?.role === 'admin' ? (
+                <Admin />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            } 
+          />
           <Route path="/profile" element={<Profile />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </AnimatePresence>
       <Navigation />
       <NotificationPrompt />
+    </div>
+  );
+}
+
+function LoginScreen() {
+  const { login } = useAuth();
+  const [step, setStep] = useState(0);
+
+  const steps = [
+    {
+      title: "Real-time Job Alerts",
+      desc: "Get instant notifications for SSC, Banking, Railways & State PSC jobs.",
+      icon: TrendingUp,
+      color: "bg-[#FF9933]/10 text-[#FF9933]"
+    },
+    {
+      title: "AI Career Coach",
+      desc: "Smart guidance for UPSC planning and exam strategy personalized for you.",
+      icon: Bot,
+      color: "bg-[#0686FD]/10 text-[#0686FD]"
+    },
+    {
+      title: "Direct Form Links",
+      desc: "One-tap access to official application forms and notification PDFs.",
+      icon: ShieldCheck,
+      color: "bg-[#12B76A]/10 text-[#12B76A]"
+    }
+  ];
+
+  return (
+    <div className="flex flex-col min-h-screen bg-slate-900 text-white overflow-hidden relative">
+      <div className="pt-16 flex flex-col items-center relative z-10">
+        <AppLogo size={90} withText={true} />
+        <h1 className="text-3xl font-black text-white tracking-widest font-display mt-4">BHARAT EXAMS</h1>
+        <p className="text-[10px] uppercase tracking-[0.4em] font-black text-[#FF9933]">AI Career Super App 🇮🇳</p>
+      </div>
+
+      <div className="flex-1 relative flex flex-col items-center justify-center p-8 pt-2 z-10">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={step}
+            initial={{ x: 100, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -100, opacity: 0 }}
+            className="text-center"
+          >
+            <div className={`w-20 h-20 ${steps[step].color} rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl border border-white/5`}>
+              {React.createElement(steps[step].icon, { className: "w-10 h-10" })}
+            </div>
+            <h2 className="text-2xl font-black text-white tracking-tight mb-3 uppercase font-display">{steps[step].title}</h2>
+            <p className="text-slate-400 text-sm max-w-xs mx-auto leading-relaxed animate-pulse">
+              {steps[step].desc}
+            </p>
+          </motion.div>
+        </AnimatePresence>
+
+        <div className="flex flex-col gap-4 w-full max-w-xs absolute bottom-12">
+          <div className="flex justify-center gap-1.5 mb-6">
+            {steps.map((_, i) => (
+              <div 
+                key={i} 
+                onClick={() => setStep(i)}
+                className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${i === step ? "w-8 bg-[#0686FD]" : "w-1.5 bg-slate-800"}`} 
+              />
+            ))}
+          </div>
+
+          <button
+            onClick={login}
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-[2rem] font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-3 hover:shadow-2xl hover:shadow-blue-500/20 transition-all active:scale-95 cursor-pointer"
+          >
+            Authenticate with Google <ChevronRight className="w-4 h-4" />
+          </button>
+          
+          <p className="text-[10px] text-slate-500 font-extrabold uppercase tracking-widest text-center mt-2">
+            🇮🇳 Secured Production Authority
+          </p>
+        </div>
+      </div>
+
+      {/* Background Gradients */}
+      <div className="absolute -top-40 -left-40 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-emerald-600/5 rounded-full blur-3xl animate-pulse delay-1000" />
     </div>
   );
 }

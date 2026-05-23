@@ -296,17 +296,16 @@ export function Profile() {
           </div>
         </div>
 
-        {/* Reset App Data button */}
+        {/* Sign Out Button */}
         <button 
           onClick={async () => {
-            if (window.confirm("Are you sure you want to reset all custom study progress, planners, and custom profiles back to defaults? This action is local and irreversible.")) {
+            if (window.confirm("Are you sure you want to sign out from your secure session?")) {
               await logout();
-              window.location.reload();
             }
           }}
-          className="w-full bg-red-50 text-red-600 py-5 rounded-[2rem] font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-3 hover:bg-red-100 transition-all active:scale-95 border border-red-100 shadow-sm"
+          className="w-full bg-red-50 hover:bg-red-100 text-red-600 py-5 rounded-[2rem] font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-3 transition-all active:scale-95 border border-red-100 shadow-sm cursor-pointer"
         >
-          <LogOut className="w-4 h-4" /> Reset App Study Data
+          <LogOut className="w-4 h-4 text-red-500 animate-pulse" /> Sign Out Session
         </button>
 
         {/* PREMIUM SIGNATURE VISUAL FOOTER FOR MR ADARSH TIWARI & MADE IN INDIA */}

@@ -1,18 +1,26 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
     // --- Helpers ---
     function isSignedIn() {
       return request.auth != null;
     }
+    
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-    function incoming() {
-      return request.resource.data;
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'kushtiwari56@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
     }
-    function existing() {
-      return resource.data;
+
+    // --- Global Safety Net ---
+    match /{document=**} {
+      allow read, write: if false;
     }
 
     // --- User Profiles ---
@@ -20,7 +28,18 @@ service cloud.firestore {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
       allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
+      // Ensure normal users cannot self-escalate their role to admin
+      allow update: if isOwner(userId) && (
+        !request.resource.data.keys().hasAll(['role']) ||
+        request.resource.data.role == resource.data.role ||
+        isAdmin()
+      );
+    }
+
+    // --- Secure Admin Whitelist Collection ---
+    match /admins/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow write: if isSignedIn() && (request.auth.token.email == 'kushtiwari56@gmail.com' || isAdmin());
     }
 
     // --- AI Chat History ---
@@ -30,62 +49,48 @@ service cloud.firestore {
       allow delete: if (isSignedIn() && resource.data.userId == request.auth.uid) || isAdmin();
     }
 
-    // --- Jobs ---
+    // --- Jobs (Only postable/editable by real Admins) ---
     match /jobs/{jobId} {
       allow read: if true; 
-      allow create, update: if true;
-      allow delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
-    // --- PDF Materials collections ---
+    // --- PDF Materials collections (Admin locks) ---
     match /syllabus_pdfs/{docId} {
       allow read: if true;
-      allow create, update: if true;
-      allow delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
     match /previous_year_papers/{docId} {
       allow read: if true;
-      allow create, update: if true;
-      allow delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
     match /official_notifications/{docId} {
       allow read: if true;
-      allow create, update: if true;
-      allow delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
-    // --- Support & Feed collections ---
+    // --- Support & Feed collections (Normal users can write feed/feedback, only Admin reads user database & lists) ---
     match /feedback/{docId} {
-      allow read: if true;
-      allow create, update: if true;
-      allow delete: if isAdmin();
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
     }
 
     match /announcements/{docId} {
       allow read: if true;
-      allow create, update: if true;
-      allow delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
     match /current_affairs/{docId} {
       allow read: if true;
-      allow create, update: if true;
-      allow delete: if isAdmin();
+      allow write: if isAdmin();
     }
 
     match /notifications/{docId} {
       allow read: if true;
-      allow create, update: if true;
-      allow delete: if isAdmin();
-    }
-
-    function isAdmin() {
-      return isSignedIn() && (
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
-        request.auth.token.email == 'kushtiwari56@gmail.com'
-      );
+      allow write: if isAdmin();
     }
 
     // --- Community Chats ---
@@ -94,7 +99,7 @@ service cloud.firestore {
       
       match /messages/{messageId} {
         allow read: if isSignedIn();
-        allow create: if isSignedIn() && incoming().senderId == request.auth.uid;
+        allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid;
       }
     }
   }
