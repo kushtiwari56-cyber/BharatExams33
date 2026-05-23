@@ -1,0 +1,10 @@
+{
+  "name": "BharatExams AI",
+  "description": "The definitive AI career companion for India. Real-time government job alerts, instant exam notifications, and personalized AI guidance for UPSC, SSC, Railways, and more.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

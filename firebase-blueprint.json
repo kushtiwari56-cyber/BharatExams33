@@ -1,0 +1,70 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Application user profile.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "education": { "type": "string" },
+        "state": { "type": "string" },
+        "language": { "type": "string" },
+        "preferredExams": { "type": "array", "items": { "type": "string" } },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "Job": {
+      "title": "Job Notification",
+      "description": "A job or exam notification entry.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "organization": { "type": "string" },
+        "type": { "type": "string", "enum": ["government", "private", "exam", "scholarship", "internship"] },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "eligibility": { "type": "string" },
+        "lastDate": { "type": "string", "format": "date-time" },
+        "officialLink": { "type": "string" },
+        "pdfUrl": { "type": "string" },
+        "salary": { "type": "string" },
+        "vacancyCount": { "type": "integer" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "organization", "type", "lastDate", "createdAt"]
+    },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "Real-time message between users or in community groups.",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["text", "senderId", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/jobs/{jobId}": {
+      "schema": "Job",
+      "description": "Job listings"
+    },
+    "/chats/{chatId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Messages in a specific chat"
+    }
+  }
+}

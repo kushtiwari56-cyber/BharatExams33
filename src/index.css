@@ -1,0 +1,61 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&family=Noto+Sans:wght@400;700&family=Noto+Sans+Devanagari:wght@400;700&family=Noto+Sans+Bengali:wght@400;700&family=Noto+Sans+Tamil:wght@400;700&family=Noto+Sans+Telugu:wght@400;700&family=Noto+Sans+Kannada:wght@400;700&family=Noto+Sans+Malayalam:wght@400;700&family=Noto+Sans+Gujarati:wght@400;700&family=Noto+Sans+Gurmukhi:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&display=swap');
+
+@theme {
+  --font-sans: "Inter", "Noto Sans", "Noto Sans Devanagari", "Noto Sans Bengali", "Noto Sans Tamil", "Noto Sans Telugu", "Noto Sans Kannada", "Noto Sans Malayalam", "Noto Sans Gujarati", "Noto Sans Gurmukhi", sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-urdu: "Noto Naskh Arabic", "Noto Sans", sans-serif;
+}
+
+@layer base {
+  body {
+    @apply font-sans text-gray-900 overflow-x-hidden bg-white antialiased leading-relaxed;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Support Urdu script line height and style */
+  .font-urdu-rtl {
+    font-family: var(--font-urdu);
+    direction: rtl;
+    line-height: 2 !important;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@layer components {
+  .markdown-body {
+    @apply text-sm leading-relaxed;
+  }
+  .markdown-body h1 {
+    @apply text-lg font-black mt-4 mb-2 uppercase tracking-tight font-display;
+  }
+  .markdown-body h2 {
+    @apply text-base font-bold mt-4 mb-2 text-blue-600 uppercase tracking-wide font-display;
+  }
+  .markdown-body p {
+    @apply mb-3;
+  }
+  .markdown-body ul {
+    @apply list-disc pl-5 mb-4 space-y-1.5;
+  }
+  .markdown-body li {
+    @apply text-gray-700 font-medium;
+  }
+  .markdown-body strong {
+    @apply font-bold text-gray-900;
+  }
+  .markdown-body blockquote {
+    @apply border-l-4 border-blue-500 pl-4 py-1 italic text-gray-600 bg-blue-50/50 my-4 rounded-r-xl;
+  }
+}
+
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom);
+}
