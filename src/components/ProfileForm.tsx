@@ -12,7 +12,7 @@ interface ProfileFormProps {
 }
 
 export function ProfileForm({ onComplete }: ProfileFormProps) {
-  const { user, profile } = useAuth();
+  const { user, profile, updateMockProfile } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -46,11 +46,27 @@ export function ProfileForm({ onComplete }: ProfileFormProps) {
     if (!user) return;
     setLoading(true);
     try {
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
+      const updated = {
+        ...profile,
         ...formData,
         updatedAt: new Date().toISOString(),
-      });
+      } as UserProfile;
+      
+      // Save locally to simulated auth state
+      if (typeof updateMockProfile === 'function') {
+        updateMockProfile(updated);
+      }
+      
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, {
+          ...formData,
+          updatedAt: new Date().toISOString(),
+        });
+      } catch (dbErr) {
+        console.warn("Firestore save skipped/failed, saved locally:", dbErr);
+      }
+
       toast.success('Identity set successfully!');
       onComplete();
     } catch (error) {

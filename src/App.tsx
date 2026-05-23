@@ -114,10 +114,6 @@ function AppContent() {
     return <OnboardingCover onComplete={() => setIsOnboarded(true)} />;
   }
 
-  if (!user) {
-    return <LoginScreen />;
-  }
-
   const isProfileIncomplete = !profile?.state || !profile?.education?.qualification;
 
   if (isProfileIncomplete) {
@@ -143,84 +139,6 @@ function AppContent() {
       </AnimatePresence>
       <Navigation />
       <NotificationPrompt />
-    </div>
-  );
-}
-
-function LoginScreen() {
-  const { login } = useAuth();
-  const [step, setStep] = useState(0);
-
-  const steps = [
-    {
-      title: "Real-time Job Alerts",
-      desc: "Get instant notifications for SSC, Banking, Railways & State PSC jobs.",
-      icon: TrendingUp,
-      color: "bg-orange-500"
-    },
-    {
-      title: "AI Career Coach",
-      desc: "Smart guidance for UPSC planning and exam strategy personalized for you.",
-      icon: Bot,
-      color: "bg-blue-600"
-    },
-    {
-      title: "Direct Form Links",
-      desc: "One-tap access to official application forms and notification PDFs.",
-      icon: ShieldCheck,
-      color: "bg-green-600"
-    }
-  ];
-
-  return (
-    <div className="flex flex-col min-h-screen bg-white overflow-hidden">
-      {/* Premium Fixed Logo Header */}
-      <div className="pt-8 flex flex-col items-center">
-        <AppLogo size={90} withText={true} textColor="text-gray-900" />
-      </div>
-
-      <div className="flex-1 relative flex flex-col items-center justify-center p-8 pt-2">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={step}
-            initial={{ x: 100, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -100, opacity: 0 }}
-            className="text-center"
-          >
-            <div className={`w-24 h-24 ${steps[step].color} rounded-[2rem] flex items-center justify-center mx-auto mb-10 shadow-2xl transition-colors duration-500`}>
-              {React.createElement(steps[step].icon, { className: "w-12 h-12 text-white" })}
-            </div>
-            <h2 className="text-3xl font-black text-gray-900 tracking-tight mb-4 uppercase font-display">{steps[step].title}</h2>
-            <p className="text-gray-500 text-sm max-w-xs mx-auto leading-relaxed">
-              {steps[step].desc}
-            </p>
-          </motion.div>
-        </AnimatePresence>
-
-        <div className="flex flex-col gap-4 w-full max-w-xs absolute bottom-12">
-          <div className="flex justify-center gap-1.5 mb-6">
-            {steps.map((_, i) => (
-              <div 
-                key={i} 
-                onClick={() => setStep(i)}
-                className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${i === step ? "w-8 bg-blue-600" : "w-1.5 bg-gray-200"}`} 
-              />
-            ))}
-          </div>
-
-          <button
-            onClick={login}
-            className="w-full bg-gray-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-3 hover:bg-gray-800 transition-all active:scale-95 shadow-xl shadow-gray-200"
-          >
-            Get Started <ChevronRight className="w-4 h-4" />
-          </button>
-          
-          <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest text-center">
-            Secured by Google Authentication
-          </p>
-        </div>
-      </div>
     </div>
   );
 }

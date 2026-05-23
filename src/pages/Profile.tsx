@@ -296,12 +296,17 @@ export function Profile() {
           </div>
         </div>
 
-        {/* Sign out button */}
+        {/* Reset App Data button */}
         <button 
-          onClick={logout}
+          onClick={async () => {
+            if (window.confirm("Are you sure you want to reset all custom study progress, planners, and custom profiles back to defaults? This action is local and irreversible.")) {
+              await logout();
+              window.location.reload();
+            }
+          }}
           className="w-full bg-red-50 text-red-600 py-5 rounded-[2rem] font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-3 hover:bg-red-100 transition-all active:scale-95 border border-red-100 shadow-sm"
         >
-          <LogOut className="w-4 h-4" /> Sign Out from BharatExams
+          <LogOut className="w-4 h-4" /> Reset App Study Data
         </button>
 
         {/* PREMIUM SIGNATURE VISUAL FOOTER FOR MR ADARSH TIWARI & MADE IN INDIA */}
