@@ -157,7 +157,7 @@ function AppContent() {
 }
 
 function LoginScreen() {
-  const { login } = useAuth();
+  const { login, loading: authLoading } = useAuth();
   const [step, setStep] = useState(0);
 
   const steps = [
@@ -220,14 +220,23 @@ function LoginScreen() {
           </div>
 
           <button
+            disabled={authLoading}
             onClick={login}
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-[2rem] font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-3 hover:shadow-2xl hover:shadow-blue-500/20 transition-all active:scale-95 cursor-pointer"
+            className={`w-full text-white py-5 rounded-[2rem] font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-3 transition-all active:scale-95 cursor-pointer hover:shadow-2xl ${authLoading ? "bg-slate-800 border border-slate-700 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500 hover:shadow-blue-500/20"}`}
           >
-            Authenticate with Google <ChevronRight className="w-4 h-4" />
+            {authLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-[#FF9933]" /> Connecting to Google...
+              </>
+            ) : (
+              <>
+                Authenticate with Google <ChevronRight className="w-4 h-4" />
+              </>
+            )}
           </button>
           
           <p className="text-[10px] text-slate-500 font-extrabold uppercase tracking-widest text-center mt-2">
-            🇮🇳 Secured Production Authority
+            {authLoading ? "Please verify your secure identity..." : "🇮🇳 Secured Production Authority"}
           </p>
         </div>
       </div>

@@ -2,8 +2,12 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
   onAuthStateChanged, 
   signInWithPopup, 
-  GoogleAuthProvider, 
-  signOut, 
+  signInWithRedirect,
+  getRedirectResult,
+  browserLocalPersistence,
+  setPersistence,
+  GoogleAuthProvider,
+  signOut,
   User 
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -31,6 +35,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 1. Force Local Session Persistence so logins survive reloads / transitions
+    setPersistence(auth, browserLocalPersistence).catch((err) => {
+      console.warn("Firebase Local persistence initialization warning:", err);
+    });
+
+    // 2. Handle Google Redirect authentication outcome (critical for mobile browsers / non-popup sessions)
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          console.log("Logged in successfully via redirect auth flow:", result.user);
+        }
+      })
+      .catch((error) => {
+        console.error("Firebase auth redirect parsing error:", error);
+      });
+
+    // 3. Setup dynamic auth change subscriber
     return onAuthStateChanged(auth, async (u) => {
       setUser(u);
       setLoading(true);
@@ -101,9 +122,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      provider.addScope('email');
+      provider.addScope('profile');
+      
+      // Determine if the device is a mobile browser OR embedded inside an iframe (e.g. preview pane)
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isIframe = window.self !== window.top;
+
+      if (isMobile || isIframe) {
+        console.log("Executing redirect login flow (Mobile/Iframe detected)");
+        await signInWithRedirect(auth, provider);
+      } else {
+        try {
+          console.log("Attempting popup login flow");
+          await signInWithPopup(auth, provider);
+        } catch (popupErr: any) {
+          console.warn("Popup authentication failed, switching automatically to redirect:", popupErr);
+          // If popup is blocked by settings or closed manually by the visitor, fallback smoothly
+          if (
+            popupErr.code === 'auth/popup-blocked' || 
+            popupErr.code === 'auth/popup-closed-by-user' ||
+            popupErr.code === 'auth/cancelled-popup-request'
+          ) {
+            await signInWithRedirect(auth, provider);
+          } else {
+            throw popupErr;
+          }
+        }
+      }
     } catch (err) {
-      console.error("Authentication pop-up failure:", err);
+      console.error("Authentication trigger failure:", err);
       throw err;
     } finally {
       setLoading(false);
