@@ -157,8 +157,9 @@ function AppContent() {
 }
 
 function LoginScreen() {
-  const { login, loading: authLoading } = useAuth();
+  const { login, loginAsGuest, loading: authLoading } = useAuth();
   const [step, setStep] = useState(0);
+  const [errorText, setErrorText] = useState<string | null>(null);
 
   const steps = [
     {
@@ -181,6 +182,22 @@ function LoginScreen() {
     }
   ];
 
+  const handleGoogleAuthentication = async () => {
+    setErrorText(null);
+    try {
+      await login();
+    } catch (err: any) {
+      console.error("Google Auth Error:", err);
+      let friendlyMessage = "Connection failed. This usually means the current domain is not whitelisted in your Firebase Console, or cookies are blocked.";
+      if (err.code === 'auth/popup-blocked') {
+        friendlyMessage = "Google Authentication Popup was blocked by your browser settings. Please allow popups or use the Guest Bypass below!";
+      } else if (err.code === 'auth/unauthorized-domain') {
+        friendlyMessage = "This domain is not whitelisted in Firebase Authentication. Please add it to your Authorized Domains list, or continue as a Guest!";
+      }
+      setErrorText(friendlyMessage);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-900 text-white overflow-hidden relative">
       <div className="pt-16 flex flex-col items-center relative z-10">
@@ -196,20 +213,31 @@ function LoginScreen() {
             initial={{ x: 100, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -100, opacity: 0 }}
-            className="text-center"
+            className="text-center mb-8"
           >
-            <div className={`w-20 h-20 ${steps[step].color} rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-2xl border border-white/5`}>
+            <div className={`w-20 h-20 ${steps[step].color} rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-2xl border border-white/5`}>
               {React.createElement(steps[step].icon, { className: "w-10 h-10" })}
             </div>
             <h2 className="text-2xl font-black text-white tracking-tight mb-3 uppercase font-display">{steps[step].title}</h2>
-            <p className="text-slate-400 text-sm max-w-xs mx-auto leading-relaxed animate-pulse">
+            <p className="text-slate-400 text-sm max-w-xs mx-auto leading-relaxed">
               {steps[step].desc}
             </p>
           </motion.div>
         </AnimatePresence>
 
-        <div className="flex flex-col gap-4 w-full max-w-xs absolute bottom-12">
-          <div className="flex justify-center gap-1.5 mb-6">
+        {/* Dynamic troubleshooting message banner */}
+        {errorText && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            className="w-full max-w-xs mb-6 p-4 bg-rose-950/40 border border-rose-500/20 rounded-2xl text-rose-300 text-[11px] leading-relaxed text-center font-semibold"
+          >
+            ⚠️ {errorText}
+          </motion.div>
+        )}
+
+        <div className="flex flex-col gap-3.5 w-full max-w-xs absolute bottom-12">
+          <div className="flex justify-center gap-1.5 mb-2">
             {steps.map((_, i) => (
               <div 
                 key={i} 
@@ -219,10 +247,11 @@ function LoginScreen() {
             ))}
           </div>
 
+          {/* Primary Google Auth Button */}
           <button
             disabled={authLoading}
-            onClick={login}
-            className={`w-full text-white py-5 rounded-[2rem] font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-3 transition-all active:scale-95 cursor-pointer hover:shadow-2xl ${authLoading ? "bg-slate-800 border border-slate-700 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500 hover:shadow-blue-500/20"}`}
+            onClick={handleGoogleAuthentication}
+            className={`w-full text-white py-4 rounded-[2rem] font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-3 transition-all active:scale-95 cursor-pointer hover:shadow-2xl ${authLoading ? "bg-slate-800 border border-slate-700 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500 hover:shadow-blue-500/20"}`}
           >
             {authLoading ? (
               <>
@@ -234,8 +263,16 @@ function LoginScreen() {
               </>
             )}
           </button>
+
+          {/* Guest Access Fallback Trigger */}
+          <button
+            onClick={loginAsGuest}
+            className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700/60 text-slate-300 py-4 rounded-[2rem] font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer hover:text-white"
+          >
+            Access as Guest Candidate <Sparkles className="w-4 h-4 text-[#FF9933] animate-pulse" />
+          </button>
           
-          <p className="text-[10px] text-slate-500 font-extrabold uppercase tracking-widest text-center mt-2">
+          <p className="text-[10px] text-slate-500 font-extrabold uppercase tracking-widest text-center mt-1">
             {authLoading ? "Please verify your secure identity..." : "🇮🇳 Secured Production Authority"}
           </p>
         </div>

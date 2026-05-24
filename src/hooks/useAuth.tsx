@@ -18,11 +18,34 @@ export const ADMIN_EMAILS = [
   "kushtiwari56@gmail.com"
 ];
 
+const MOCK_GUEST_PROFILE: UserProfile = {
+  uid: 'guest-aspirant-hub',
+  email: 'guest@bharatexams.in',
+  displayName: 'Guest Aspirant',
+  photoURL: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150',
+  role: 'user',
+  state: 'Delhi',
+  gender: 'Male',
+  dob: '2001-01-01',
+  category: 'General',
+  education: {
+    qualification: 'Graduate',
+    stream: 'Science',
+    passingYear: '2025',
+    percentage: '82%',
+    institution: 'Delhi University'
+  },
+  skills: ['Aptitude', 'Reasoning', 'General Awareness'],
+  preferredJobs: ['SSC', 'Railways'],
+  createdAt: new Date().toISOString()
+} as any;
+
 interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
   login: () => Promise<void>;
+  loginAsGuest: () => void;
   logout: () => Promise<void>;
   updateProfile: (newData: Partial<UserProfile>) => Promise<void>;
 }
@@ -35,12 +58,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Force Local Session Persistence so logins survive reloads / transitions
+    // 1. Check for local guest session first (extremely stable for sandboxed deployments)
+    const isGuestActive = localStorage.getItem('bharat_guest_session') === 'true';
+    if (isGuestActive) {
+      setProfile(MOCK_GUEST_PROFILE);
+      setUser({
+        uid: MOCK_GUEST_PROFILE.uid,
+        email: MOCK_GUEST_PROFILE.email,
+        displayName: MOCK_GUEST_PROFILE.displayName,
+        photoURL: MOCK_GUEST_PROFILE.photoURL,
+        emailVerified: false,
+      } as any);
+      setLoading(false);
+      return;
+    }
+
+    // 2. Force Local Session Persistence so logins survive reloads / transitions
     setPersistence(auth, browserLocalPersistence).catch((err) => {
       console.warn("Firebase Local persistence initialization warning:", err);
     });
 
-    // 2. Handle Google Redirect authentication outcome (critical for mobile browsers / non-popup sessions)
+    // 3. Handle Google Redirect authentication outcome (critical for mobile browsers / non-popup sessions)
     getRedirectResult(auth)
       .then((result) => {
         if (result?.user) {
@@ -51,8 +89,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error("Firebase auth redirect parsing error:", error);
       });
 
-    // 3. Setup dynamic auth change subscriber
+    // 4. Setup dynamic auth change subscriber
     return onAuthStateChanged(auth, async (u) => {
+      // Avoid overriding active guest sessions
+      if (localStorage.getItem('bharat_guest_session') === 'true') {
+        return;
+      }
       setUser(u);
       setLoading(true);
       if (u) {
@@ -118,6 +160,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const loginAsGuest = () => {
+    setLoading(true);
+    try {
+      localStorage.setItem('bharat_guest_session', 'true');
+      setProfile(MOCK_GUEST_PROFILE);
+      setUser({
+        uid: MOCK_GUEST_PROFILE.uid,
+        email: MOCK_GUEST_PROFILE.email,
+        displayName: MOCK_GUEST_PROFILE.displayName,
+        photoURL: MOCK_GUEST_PROFILE.photoURL,
+        emailVerified: false,
+      } as any);
+    } catch (e) {
+      console.error("Error configuring guest session:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const login = async () => {
     try {
       setLoading(true);
@@ -166,7 +227,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         console.warn("Storage purge warning:", e);
       }
-      await signOut(auth);
+      await signOut(auth).catch(() => {});
       setProfile(null);
       setUser(null);
     } catch (err) {
@@ -178,6 +239,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateProfile = async (newData: Partial<UserProfile>) => {
     if (!user) return;
+    
+    // Check if we are in mock guest session
+    if (localStorage.getItem('bharat_guest_session') === 'true') {
+      const updatedProfile = {
+        ...profile,
+        ...newData,
+        updatedAt: new Date().toISOString()
+      } as UserProfile;
+      updatedProfile.role = 'user'; // absolute safety
+      setProfile(updatedProfile);
+      return;
+    }
+
     try {
       const userRef = doc(db, 'users', user.uid);
       const updatedProfile = {
@@ -199,7 +273,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, login, logout, updateProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, login, loginAsGuest, logout, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );
