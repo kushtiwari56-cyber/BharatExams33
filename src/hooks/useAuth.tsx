@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
   onAuthStateChanged, 
-  signInWithPopup, 
   signInWithRedirect,
   getRedirectResult,
   browserLocalPersistence,
@@ -58,6 +57,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     // 1. Check for local guest session first (extremely stable for sandboxed deployments)
     const isGuestActive = localStorage.getItem('bharat_guest_session') === 'true';
     if (isGuestActive) {
@@ -73,91 +74,104 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // 2. Force Local Session Persistence so logins survive reloads / transitions
-    setPersistence(auth, browserLocalPersistence).catch((err) => {
-      console.warn("Firebase Local persistence initialization warning:", err);
-    });
-
-    // 3. Handle Google Redirect authentication outcome (critical for mobile browsers / non-popup sessions)
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result?.user) {
+    const initAuth = async () => {
+      try {
+        // Enforce Local Session Persistence
+        await setPersistence(auth, browserLocalPersistence);
+        
+        // Handle Google Redirect authentication outcome (critical for mobile browsers / non-popup sessions)
+        const result = await getRedirectResult(auth);
+        if (result?.user && isMounted) {
           console.log("Logged in successfully via redirect auth flow:", result.user);
         }
-      })
-      .catch((error) => {
-        console.error("Firebase auth redirect parsing error:", error);
-      });
-
-    // 4. Setup dynamic auth change subscriber
-    return onAuthStateChanged(auth, async (u) => {
-      // Avoid overriding active guest sessions
-      if (localStorage.getItem('bharat_guest_session') === 'true') {
-        return;
+      } catch (err) {
+        console.error("Firebase auth initialization/redirect error:", err);
       }
-      setUser(u);
-      setLoading(true);
-      if (u) {
-        try {
-          const docRef = doc(db, 'users', u.uid);
-          const docSnap = await getDoc(docRef);
-          
-          // STRICT EMAIL GATE FOR ADMIN AUTHORITY
-          const isApprovedAdmin = u.email ? ADMIN_EMAILS.includes(u.email) : false;
-          const assignedRole: 'admin' | 'user' = isApprovedAdmin ? 'admin' : 'user';
 
-          if (isApprovedAdmin) {
-            // Write to secured admins collection as requested in requirement 9
-            const adminDocRef = doc(db, 'admins', u.uid);
-            await setDoc(adminDocRef, {
-              email: u.email,
-              role: 'admin',
-              createdAt: serverTimestamp(),
-              permissions: ['all']
-            }, { merge: true });
-          }
+      // Attach dynamic auth change subscriber after redirect is resolved or fails
+      const unsubscribe = onAuthStateChanged(auth, async (u) => {
+        if (!isMounted) return;
 
-          if (docSnap.exists()) {
-            const data = docSnap.data() as UserProfile;
+        // Skip auth handling if guest is active in local storage
+        if (localStorage.getItem('bharat_guest_session') === 'true') {
+          return;
+        }
+
+        setUser(u);
+        if (u) {
+          setLoading(true);
+          try {
+            const docRef = doc(db, 'users', u.uid);
+            const docSnap = await getDoc(docRef);
             
-            // Sync role based on verified email-lock
-            if (data.role !== assignedRole) {
-              const updatedData: UserProfile = { ...data, role: assignedRole };
-              await setDoc(docRef, updatedData, { merge: true });
-              setProfile(updatedData);
-            } else {
-              setProfile(data);
+            // STRICT EMAIL GATE FOR ADMIN AUTHORITY
+            const isApprovedAdmin = u.email ? ADMIN_EMAILS.includes(u.email) : false;
+            const assignedRole: 'admin' | 'user' = isApprovedAdmin ? 'admin' : 'user';
+
+            if (isApprovedAdmin) {
+              // Write to secured admins collection as requested in requirement 9
+              const adminDocRef = doc(db, 'admins', u.uid);
+              await setDoc(adminDocRef, {
+                email: u.email,
+                role: 'admin',
+                createdAt: serverTimestamp(),
+                permissions: ['all']
+              }, { merge: true });
             }
-          } else {
-            const newProfile: UserProfile = {
+
+            if (docSnap.exists()) {
+              const data = docSnap.data() as UserProfile;
+              
+              // Sync role based on verified email-lock
+              if (data.role !== assignedRole) {
+                const updatedData: UserProfile = { ...data, role: assignedRole };
+                await setDoc(docRef, updatedData, { merge: true });
+                if (isMounted) setProfile(updatedData);
+              } else {
+                if (isMounted) setProfile(data);
+              }
+            } else {
+              const newProfile: UserProfile = {
+                uid: u.uid,
+                email: u.email || '',
+                displayName: u.displayName || 'Aspirant',
+                photoURL: u.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150',
+                role: assignedRole,
+                createdAt: new Date().toISOString()
+              } as any;
+              await setDoc(docRef, newProfile);
+              if (isMounted) setProfile(newProfile);
+            }
+          } catch (err) {
+            console.error("Error loading user security profile:", err);
+            // Fallback local Profile in case db connection fails
+            const fallbackProfile: UserProfile = {
               uid: u.uid,
               email: u.email || '',
               displayName: u.displayName || 'Aspirant',
-              photoURL: u.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150',
-              role: assignedRole,
+              photoURL: u.photoURL || '',
+              role: u.email && ADMIN_EMAILS.includes(u.email) ? 'admin' : 'user',
               createdAt: new Date().toISOString()
             } as any;
-            await setDoc(docRef, newProfile);
-            setProfile(newProfile);
+            if (isMounted) setProfile(fallbackProfile);
           }
-        } catch (err) {
-          console.error("Error loading user security profile:", err);
-          // Fallback local Profile in case db connection fails
-          const fallbackProfile: UserProfile = {
-            uid: u.uid,
-            email: u.email || '',
-            displayName: u.displayName || 'Aspirant',
-            photoURL: u.photoURL || '',
-            role: u.email && ADMIN_EMAILS.includes(u.email) ? 'admin' : 'user',
-            createdAt: new Date().toISOString()
-          } as any;
-          setProfile(fallbackProfile);
+        } else {
+          if (isMounted) setProfile(null);
         }
-      } else {
-        setProfile(null);
-      }
-      setLoading(false);
-    });
+        if (isMounted) setLoading(false);
+      });
+
+      return unsubscribe;
+    };
+
+    const unsubscribePromise = initAuth();
+
+    return () => {
+      isMounted = false;
+      unsubscribePromise.then((unsub) => {
+        if (unsub) unsub();
+      });
+    };
   }, []);
 
   const loginAsGuest = () => {
@@ -186,31 +200,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       provider.addScope('email');
       provider.addScope('profile');
       
-      // Determine if the device is a mobile browser OR embedded inside an iframe (e.g. preview pane)
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      const isIframe = window.self !== window.top;
-
-      if (isMobile || isIframe) {
-        console.log("Executing redirect login flow (Mobile/Iframe detected)");
-        await signInWithRedirect(auth, provider);
-      } else {
-        try {
-          console.log("Attempting popup login flow");
-          await signInWithPopup(auth, provider);
-        } catch (popupErr: any) {
-          console.warn("Popup authentication failed, switching automatically to redirect:", popupErr);
-          // If popup is blocked by settings or closed manually by the visitor, fallback smoothly
-          if (
-            popupErr.code === 'auth/popup-blocked' || 
-            popupErr.code === 'auth/popup-closed-by-user' ||
-            popupErr.code === 'auth/cancelled-popup-request'
-          ) {
-            await signInWithRedirect(auth, provider);
-          } else {
-            throw popupErr;
-          }
-        }
-      }
+      console.log("Executing exclusive mobile-safe redirect login flow");
+      await signInWithRedirect(auth, provider);
     } catch (err) {
       console.error("Authentication trigger failure:", err);
       throw err;
